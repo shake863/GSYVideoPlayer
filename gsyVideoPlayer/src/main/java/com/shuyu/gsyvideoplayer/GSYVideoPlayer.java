@@ -263,6 +263,10 @@ public abstract class GSYVideoPlayer extends GSYBaseVideoPlayer implements View.
     protected void setStateAndUi(int state) {
         mCurrentState = state;
         switch (mCurrentState) {
+
+            case CURRENt_STATE_PARSEURL:
+                parseVideo();
+                break;
             case CURRENT_STATE_NORMAL:
                 if (isCurrentMediaListener()) {
                     cancelProgressTimer();
@@ -368,13 +372,31 @@ public abstract class GSYVideoPlayer extends GSYBaseVideoPlayer implements View.
     }
 
     /**
+     * 解析出播放地址
+     */
+    protected void parseVideo() {
+
+        // 在解析阶段就添加成listener
+        if (GSYVideoManager.instance().listener() != null && GSYVideoManager.instance().listener() !=
+                this) {
+            GSYVideoManager.instance().listener().onCompletion();
+        } else {
+            GSYVideoManager.instance().setListener(this);
+        }
+    }
+
+    /**
      * 开始状态视频播放
      */
     protected void prepareVideo() {
-        if (GSYVideoManager.instance().listener() != null) {
+
+        if (GSYVideoManager.instance().listener() != null && GSYVideoManager.instance().listener() !=
+                this) {
             GSYVideoManager.instance().listener().onCompletion();
+        } else {
+            GSYVideoManager.instance().setListener(this);
         }
-        GSYVideoManager.instance().setListener(this);
+
         GSYVideoManager.instance().setPlayTag(mPlayTag);
         GSYVideoManager.instance().setPlayPosition(mPlayPosition);
         addTextureView();
