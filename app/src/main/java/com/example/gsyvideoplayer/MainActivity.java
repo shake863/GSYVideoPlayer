@@ -1,5 +1,6 @@
 package com.example.gsyvideoplayer;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -26,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
         ButterKnife.bind(this);
     }
 
-    @OnClick({R.id.open_btn, R.id.list_btn, R.id.list_btn_2, R.id.list_detail, R.id.clear_cache, R.id.recycler_2})
+    @OnClick({R.id.open_btn, R.id.list_btn, R.id.list_btn_2, R.id.list_detail, R.id.clear_cache, R.id.recycler, R.id.recycler_2, R.id.list_detail_list, R.id.web_detail})
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.open_btn:
@@ -41,14 +42,28 @@ public class MainActivity extends AppCompatActivity {
                 //支持全屏重力旋转的列表播放，滑动后不会被销毁
                 JumpUtils.goToVideoPlayer2(this);
                 break;
+            case R.id.recycler:
+                //recycler的demo
+                JumpUtils.goToVideoRecyclerPlayer(this);
+                break;
             case R.id.recycler_2:
+                //recycler的demo
                 JumpUtils.goToVideoRecyclerPlayer2(this);
                 break;
             case R.id.list_detail:
-                //支持全屏重力旋转的列表播放，滑动后不会被销毁
+                //支持旋转全屏的详情模式
                 JumpUtils.goToDetailPlayer(this);
                 break;
+            case R.id.list_detail_list:
+                //播放一个连续列表
+                JumpUtils.goToDetailListPlayer(this);
+                break;
+            case R.id.web_detail:
+                //播放一个连续列表
+                JumpUtils.gotoWebDetail(this);
+                break;
             case R.id.clear_cache:
+                //清理缓存
                 GSYVideoManager.clearAllDefaultCache(MainActivity.this);
                 //String url = "http://baobab.wdjcdn.com/14564977406580.mp4";
                 //GSYVideoManager.clearDefaultCache(MainActivity.this, url);

@@ -1,9 +1,16 @@
 package com.example.gsyvideoplayer.video;
 
+import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -11,12 +18,15 @@ import com.example.gsyvideoplayer.R;
 import com.example.gsyvideoplayer.model.SwitchVideoModel;
 import com.example.gsyvideoplayer.view.SwitchVideoTypeDialog;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
+import com.shuyu.gsyvideoplayer.GSYVideoPlayer;
 import com.shuyu.gsyvideoplayer.utils.GSYVideoType;
 import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Created by shuyu on 2016/12/7.
@@ -25,18 +35,35 @@ import java.util.List;
 public class SampleVideo extends StandardGSYVideoPlayer {
 
     private TextView mMoreScale;
+
     private TextView mSwitchSize;
-    private List<SwitchVideoModel> urlList = new ArrayList<>();
-    private int type = 0;
-    private int sourcePosition = 0;
+
+    private List<SwitchVideoModel> mUrlList = new ArrayList<>();
+
+    //记住切换数据源类型
+    private int mType = 0;
+
+    //数据源
+    private int mSourcePosition = 0;
+
+    /**
+     * 1.5.0开始加入，如果需要不同布局区分功能，需要重载
+     */
+    public SampleVideo(Context context, Boolean fullFlag) {
+        super(context, fullFlag);
+    }
 
     public SampleVideo(Context context) {
         super(context);
-        initView();
     }
 
     public SampleVideo(Context context, AttributeSet attrs) {
         super(context, attrs);
+    }
+
+    @Override
+    protected void init(Context context) {
+        super.init(context);
         initView();
     }
 
@@ -44,23 +71,24 @@ public class SampleVideo extends StandardGSYVideoPlayer {
         mMoreScale = (TextView) findViewById(R.id.moreScale);
         mSwitchSize = (TextView) findViewById(R.id.switchSize);
 
+        //切换清晰度
         mMoreScale.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (type == 0) {
-                    type = 1;
+                if (mType == 0) {
+                    mType = 1;
                     mMoreScale.setText("16:9");
                     GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_16_9);
                     if (mTextureView != null)
                         mTextureView.requestLayout();
-                } else if (type == 1) {
-                    type = 2;
+                } else if (mType == 1) {
+                    mType = 2;
                     mMoreScale.setText("4:3");
                     GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_4_3);
                     if (mTextureView != null)
                         mTextureView.requestLayout();
-                } else if (type == 2) {
-                    type = 0;
+                } else if (mType == 2) {
+                    mType = 0;
                     mMoreScale.setText("默认比例");
                     GSYVideoType.setShowType(GSYVideoType.SCREEN_TYPE_DEFAULT);
                     if (mTextureView != null)
@@ -88,7 +116,7 @@ public class SampleVideo extends StandardGSYVideoPlayer {
      * @return
      */
     public boolean setUp(List<SwitchVideoModel> url, boolean cacheWithPlay, Object... objects) {
-        urlList = url;
+        mUrlList = url;
         return setUp(url.get(0).getUrl(), cacheWithPlay, objects);
     }
 
@@ -102,7 +130,7 @@ public class SampleVideo extends StandardGSYVideoPlayer {
      * @return
      */
     public boolean setUp(List<SwitchVideoModel> url, boolean cacheWithPlay, File cachePath, Object... objects) {
-        urlList = url;
+        mUrlList = url;
         return setUp(url.get(0).getUrl(), cacheWithPlay, cachePath, objects);
     }
 
@@ -111,32 +139,38 @@ public class SampleVideo extends StandardGSYVideoPlayer {
         return R.layout.sample_video;
     }
 
-
+    /**
+     * 弹出切换清晰度
+     */
     private void showSwitchDialog() {
         SwitchVideoTypeDialog switchVideoTypeDialog = new SwitchVideoTypeDialog(getContext());
-        switchVideoTypeDialog.initList(urlList, new SwitchVideoTypeDialog.OnListItemClickListener() {
+        switchVideoTypeDialog.initList(mUrlList, new SwitchVideoTypeDialog.OnListItemClickListener() {
             @Override
             public void onItemClick(int position) {
-                final String name = urlList.get(position).getName();
-                if (sourcePosition != position) {
-                    final String url = urlList.get(position).getUrl();
-                    onVideoPause();
-                    final long currentPosition = mCurrentPosition;
-                    GSYVideoManager.instance().releaseMediaPlayer();
-                    cancelProgressTimer();
-                    hideAllWidget();
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            setUp(url, mCache, mCachePath, mObjects);
-                            setSeekOnStart(currentPosition);
-                            startPlayLogic();
-                            cancelProgressTimer();
-                            hideAllWidget();
-                        }
-                    }, 500);
-                    mSwitchSize.setText(name);
-                    sourcePosition = position;
+                final String name = mUrlList.get(position).getName();
+                if (mSourcePosition != position) {
+                    if ((mCurrentState == GSYVideoPlayer.CURRENT_STATE_PLAYING
+                            || mCurrentState == GSYVideoPlayer.CURRENT_STATE_PAUSE)
+                            && GSYVideoManager.instance().getMediaPlayer() != null) {
+                        final String url = mUrlList.get(position).getUrl();
+                        onVideoPause();
+                        final long currentPosition = mCurrentPosition;
+                        GSYVideoManager.instance().releaseMediaPlayer();
+                        cancelProgressTimer();
+                        hideAllWidget();
+                        new Handler().postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                setUp(url, mCache, mCachePath, mObjects);
+                                setSeekOnStart(currentPosition);
+                                startPlayLogic();
+                                cancelProgressTimer();
+                                hideAllWidget();
+                            }
+                        }, 500);
+                        mSwitchSize.setText(name);
+                        mSourcePosition = position;
+                    }
                 } else {
                     Toast.makeText(getContext(), "已经是 " + name, Toast.LENGTH_LONG).show();
                 }
@@ -144,5 +178,6 @@ public class SampleVideo extends StandardGSYVideoPlayer {
         });
         switchVideoTypeDialog.show();
     }
+
 
 }

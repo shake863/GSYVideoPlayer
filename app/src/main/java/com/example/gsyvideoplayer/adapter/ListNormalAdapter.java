@@ -93,6 +93,8 @@ public class ListNormalAdapter extends BaseAdapter {
         //默认缓存路径
         holder.gsyVideoPlayer.setUp(url, true , null, "这是title");
 
+        //holder.gsyVideoPlayer.setNeedShowWifiTip(false);
+
         /************************下方为其他路径************************************/
         //如果一个列表的缓存路劲都一一致
         //holder.gsyVideoPlayer.setUp(url, true, new File(FileUtils.getTestPath(), ""));
@@ -147,8 +149,33 @@ public class ListNormalAdapter extends BaseAdapter {
         //holder.gsyVideoPlayer.setLooping(true);
         holder.gsyVideoPlayer.setNeedLockFull(true);
 
+        //holder.gsyVideoPlayer.setSpeed(2);
+
         holder.gsyVideoPlayer.setPlayPosition(position);
-        holder.gsyVideoPlayer.setStandardVideoAllCallBack(sampleListener);
+
+        holder.gsyVideoPlayer.setStandardVideoAllCallBack(new SampleListener(){
+            @Override
+            public void onPrepared(String url, Object... objects) {
+                super.onPrepared(url, objects);
+                Debuger.printfLog("onPrepared");
+                if (!holder.gsyVideoPlayer.isIfCurrentIsFullscreen()) {
+                    GSYVideoManager.instance().setNeedMute(true);
+                }
+
+            }
+
+            @Override
+            public void onQuitFullscreen(String url, Object... objects) {
+                super.onQuitFullscreen(url, objects);
+                GSYVideoManager.instance().setNeedMute(true);
+            }
+
+            @Override
+            public void onEnterFullscreen(String url, Object... objects) {
+                super.onEnterFullscreen(url, objects);
+                GSYVideoManager.instance().setNeedMute(false);
+            }
+        });
 
         return convertView;
     }
@@ -166,32 +193,5 @@ public class ListNormalAdapter extends BaseAdapter {
         StandardGSYVideoPlayer gsyVideoPlayer;
         ImageView imageView;
     }
-
-    //小窗口关闭被点击的时候回调处理回复页面
-    SampleListener sampleListener = new SampleListener() {
-        @Override
-        public void onPrepared(String url, Object... objects) {
-            super.onPrepared(url, objects);
-            Debuger.printfLog("onPrepared");
-        }
-
-        @Override
-        public void onQuitSmallWidget(String url, Object... objects) {
-            super.onQuitSmallWidget(url, objects);
-            Debuger.printfLog("onQuitSmallWidget");
-        }
-
-        @Override
-        public void onClickBlankFullscreen(String url, Object... objects) {
-            super.onClickBlankFullscreen(url, objects);
-            Debuger.printfLog("onClickBlankFullscreen");
-        }
-
-        @Override
-        public void onEnterFullscreen(String url, Object... objects) {
-            super.onEnterFullscreen(url, objects);
-            Debuger.printfLog("onEnterFullscreen");
-        }
-    };
 
 }

@@ -62,6 +62,8 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
 
     private boolean mShowFullAnimation = true;//是否使用全屏动画效果
 
+    protected boolean mNeedShowWifiTip = true; //是否需要显示流量提示
+
     protected int[] mListItemRect;//当前item框的屏幕位置
 
     protected int[] mListItemSize;//当前item的大小
@@ -83,6 +85,8 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
     protected boolean mLooping = false;//循环
 
     protected boolean mHadPlay = false;//是否播放过
+
+    protected boolean mCacheFile = false; //是否是缓存的文件
 
     protected Context mContext;
 
@@ -120,10 +124,17 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
 
     protected Bitmap mFullPauseBitmap = null;//暂停时的全屏图片；
 
-    private OrientationUtils mOrientationUtils; //旋转工具类
+    protected OrientationUtils mOrientationUtils; //旋转工具类
 
     private Handler mHandler = new Handler();
 
+    /**
+     * 1.5.0开始加入，如果需要不同布局区分功能，需要重载
+     */
+    public GSYBaseVideoPlayer(Context context, Boolean fullFlag) {
+        super(context);
+        mIfCurrentIsFullscreen = fullFlag;
+    }
 
     public GSYBaseVideoPlayer(Context context) {
         super(context);
@@ -175,7 +186,7 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
     /**
      * 全屏
      */
-    private void resolveFullVideoShow(Context context, final GSYBaseVideoPlayer gsyVideoPlayer) {
+    private void resolveFullVideoShow(Context context, final GSYBaseVideoPlayer gsyVideoPlayer, final FrameLayout frameLayout) {
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) gsyVideoPlayer.getLayoutParams();
         lp.setMargins(0, 0, 0, 0);
         lp.height = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -184,18 +195,27 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
         gsyVideoPlayer.setLayoutParams(lp);
         gsyVideoPlayer.setIfCurrentIsFullscreen(true);
         mOrientationUtils = new OrientationUtils((Activity) context, gsyVideoPlayer);
-
         mOrientationUtils.setEnable(mRotateViewAuto);
+        gsyVideoPlayer.mOrientationUtils = mOrientationUtils;
 
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (mLockLand) {
-                    mOrientationUtils.resolveByClick();
+        if (isShowFullAnimation()) {
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (mLockLand && mOrientationUtils.getIsLand() != 1) {
+                        mOrientationUtils.resolveByClick();
+                    }
+                    gsyVideoPlayer.setVisibility(VISIBLE);
+                    frameLayout.setVisibility(VISIBLE);
                 }
-                gsyVideoPlayer.setVisibility(VISIBLE);
+            }, 300);
+        } else {
+            if (mLockLand) {
+                mOrientationUtils.resolveByClick();
             }
-        }, ismShowFullAnimation() ? 300 : 0);
+            gsyVideoPlayer.setVisibility(VISIBLE);
+            frameLayout.setVisibility(VISIBLE);
+        }
 
 
         if (mVideoAllCallBack != null) {
@@ -273,9 +293,26 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
 
         saveLocationStatus(context, statusBar, actionBar);
 
+        boolean hadNewConstructor = true;
+
         try {
-            Constructor<GSYBaseVideoPlayer> constructor = (Constructor<GSYBaseVideoPlayer>) GSYBaseVideoPlayer.this.getClass().getConstructor(Context.class);
-            final GSYBaseVideoPlayer gsyVideoPlayer = constructor.newInstance(getContext());
+            GSYBaseVideoPlayer.this.getClass().getConstructor(Context.class, Boolean.class);
+        } catch (Exception e) {
+            hadNewConstructor = false;
+        }
+
+        try {
+            //通过被重载的不同构造器来选择
+            Constructor<GSYBaseVideoPlayer> constructor;
+            final GSYBaseVideoPlayer gsyVideoPlayer;
+            if (!hadNewConstructor) {
+                constructor = (Constructor<GSYBaseVideoPlayer>) GSYBaseVideoPlayer.this.getClass().getConstructor(Context.class);
+                gsyVideoPlayer = constructor.newInstance(getContext());
+            } else {
+                constructor = (Constructor<GSYBaseVideoPlayer>) GSYBaseVideoPlayer.this.getClass().getConstructor(Context.class, Boolean.class);
+                gsyVideoPlayer = constructor.newInstance(getContext(), true);
+            }
+
             gsyVideoPlayer.setId(FULLSCREEN_ID);
             gsyVideoPlayer.setIfCurrentIsFullscreen(true);
             gsyVideoPlayer.setVideoAllCallBack(mVideoAllCallBack);
@@ -294,7 +331,7 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
                     @Override
                     public void run() {
                         TransitionManager.beginDelayedTransition(vp);
-                        resolveFullVideoShow(context, gsyVideoPlayer);
+                        resolveFullVideoShow(context, gsyVideoPlayer, frameLayout);
                     }
                 }, 300);
             } else {
@@ -302,11 +339,14 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
                 frameLayout.addView(gsyVideoPlayer, lp);
                 vp.addView(frameLayout, lpParent);
                 gsyVideoPlayer.setVisibility(INVISIBLE);
-                resolveFullVideoShow(context, gsyVideoPlayer);
+                frameLayout.setVisibility(INVISIBLE);
+                resolveFullVideoShow(context, gsyVideoPlayer, frameLayout);
             }
             gsyVideoPlayer.mHadPlay = mHadPlay;
+            gsyVideoPlayer.mCacheFile = mCacheFile;
             gsyVideoPlayer.mFullPauseBitmap = mFullPauseBitmap;
-            gsyVideoPlayer.setUp(mUrl, mCache, mCachePath, mMapHeadData, mObjects);
+            gsyVideoPlayer.mNeedShowWifiTip = mNeedShowWifiTip;
+            gsyVideoPlayer.setUp(mOriginUrl, mCache, mCachePath, mMapHeadData, mObjects);
             gsyVideoPlayer.setStateAndUi(mCurrentState);
             gsyVideoPlayer.addTextureView();
 
@@ -341,16 +381,22 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
      */
     public void clearFullscreenLayout() {
         mIfCurrentIsFullscreen = false;
-        int delay = mOrientationUtils.backToProtVideo();
-        mOrientationUtils.setEnable(false);
-        if (mOrientationUtils != null)
-            mOrientationUtils.releaseListener();
+        int delay = 0;
+        if (mOrientationUtils != null) {
+            delay = mOrientationUtils.backToProtVideo();
+            mOrientationUtils.setEnable(false);
+            if (mOrientationUtils != null) {
+                mOrientationUtils.releaseListener();
+                mOrientationUtils = null;
+            }
+        }
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
                 backToNormal();
             }
         }, delay);
+
     }
 
     /**
@@ -469,7 +515,7 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
 
             vp.addView(frameLayout, lpParent);
             gsyVideoPlayer.mHadPlay = mHadPlay;
-            gsyVideoPlayer.setUp(mUrl, mCache, mCachePath, mMapHeadData, mObjects);
+            gsyVideoPlayer.setUp(mOriginUrl, mCache, mCachePath, mMapHeadData, mObjects);
             gsyVideoPlayer.setStateAndUi(mCurrentState);
             gsyVideoPlayer.addTextureView();
             //隐藏掉所有的弹出状态哟
@@ -579,7 +625,7 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
     }
 
 
-    public boolean ismShowFullAnimation() {
+    public boolean isShowFullAnimation() {
         return mShowFullAnimation;
     }
 
@@ -624,6 +670,9 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
      */
     public void setRotateViewAuto(boolean rotateViewAuto) {
         this.mRotateViewAuto = rotateViewAuto;
+        if (mOrientationUtils != null) {
+            mOrientationUtils.setEnable(rotateViewAuto);
+        }
     }
 
     public boolean isLockLand() {
@@ -658,5 +707,16 @@ public abstract class GSYBaseVideoPlayer extends FrameLayout implements GSYMedia
      */
     public void setHideKey(boolean hideKey) {
         this.mHideKey = hideKey;
+    }
+
+    public boolean isNeedShowWifiTip() {
+        return mNeedShowWifiTip;
+    }
+
+    /**
+     * 是否需要显示流量提示,默认true
+     */
+    public void setNeedShowWifiTip(boolean needShowWifiTip) {
+        this.mNeedShowWifiTip = needShowWifiTip;
     }
 }

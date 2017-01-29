@@ -7,12 +7,16 @@ import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.util.Pair;
 import android.view.View;
 
+import com.example.gsyvideoplayer.DetailListPlayer;
 import com.example.gsyvideoplayer.DetailPlayer;
 import com.example.gsyvideoplayer.ListVideo2Activity;
 import com.example.gsyvideoplayer.ListVideoActivity;
 import com.example.gsyvideoplayer.PlayActivity;
 import com.example.gsyvideoplayer.R;
 import com.example.gsyvideoplayer.RecyclerView2Activity;
+import com.example.gsyvideoplayer.RecyclerViewActivity;
+import com.example.gsyvideoplayer.WebDetailActivity;
+import com.example.gsyvideoplayer.adapter.RecyclerNormalAdapter;
 
 /**
  * Created by shuyu on 2016/11/11.
@@ -63,6 +67,17 @@ public class JumpUtils {
     }
 
     /**
+     * 跳转到视频列表
+     *
+     * @param activity
+     */
+    public static void goToVideoRecyclerPlayer(Activity activity) {
+        Intent intent = new Intent(activity, RecyclerViewActivity.class);
+        ActivityOptionsCompat activityOptions = ActivityOptionsCompat.makeSceneTransitionAnimation(activity);
+        ActivityCompat.startActivity(activity, intent, activityOptions.toBundle());
+    }
+
+    /**
      * 跳转到视频列表2
      *
      * @param activity
@@ -80,6 +95,27 @@ public class JumpUtils {
      */
     public static void goToDetailPlayer(Activity activity) {
         Intent intent = new Intent(activity, DetailPlayer.class);
+        activity.startActivity(intent);
+    }
+
+    /**
+     * 跳转到详情播放
+     *
+     * @param activity
+     */
+    public static void goToDetailListPlayer(Activity activity) {
+        Intent intent = new Intent(activity, DetailListPlayer.class);
+        activity.startActivity(intent);
+    }
+
+
+    /**
+     * 跳转到详情播放
+     *
+     * @param activity
+     */
+    public static void gotoWebDetail(Activity activity) {
+        Intent intent = new Intent(activity, WebDetailActivity.class);
         activity.startActivity(intent);
     }
 }
