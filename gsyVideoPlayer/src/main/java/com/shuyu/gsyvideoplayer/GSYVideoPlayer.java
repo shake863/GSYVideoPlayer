@@ -1100,6 +1100,9 @@ public abstract class GSYVideoPlayer extends GSYBaseVideoPlayer implements View.
      * if I am playing release me
      */
     public void release() {
+
+        setStateAndUi(CURRENT_STATE_NORMAL);
+
         if (isCurrentMediaListener() &&
                 (System.currentTimeMillis() - CLICK_QUIT_FULLSCREEN_TIME) > FULL_SCREEN_NORMAL_DELAY) {
             releaseAllVideos();
