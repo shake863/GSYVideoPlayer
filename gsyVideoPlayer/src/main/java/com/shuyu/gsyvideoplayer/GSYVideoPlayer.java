@@ -1103,6 +1103,7 @@ public abstract class GSYVideoPlayer extends GSYBaseVideoPlayer implements View.
 
         setStateAndUi(CURRENT_STATE_NORMAL);
 
+        cancelProgressTimer();
         if (isCurrentMediaListener() &&
                 (System.currentTimeMillis() - CLICK_QUIT_FULLSCREEN_TIME) > FULL_SCREEN_NORMAL_DELAY) {
             releaseAllVideos();
